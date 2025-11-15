@@ -1,4 +1,4 @@
-FROM alpine
+test FROM alpine
 RUN apk add --no-cache --upgrade bash
 RUN apk add jq
 RUN apk add openssh-client
