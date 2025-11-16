@@ -1,7 +1,5 @@
 FROM alpine
-RUN apk add --no-cache --upgrade bash
-RUN apk add jq
-RUN apk add openssh-client
+
 
 RUN apk add --no-cache \
     bash \
@@ -10,23 +8,49 @@ RUN apk add --no-cache \
     py3-pip \
     sed \
     openssh \
-    jq && \
-    pip3 install --upgrade pip && \
-    pip3 install awscli cryptography
+    openssh-client \
+    jq \
+    sudo \
+    aws-cli \
+    py3-cryptography
 
-COPY build.sh . 
 
-ADD BP-BASE-SHELL-STEPS .
+ENV SSH_CREDENTIAL_NAME="SSH_KEY" \
+    PROXY_OPTION="" \
+    SSH_USERNAME="" \
+    SSH_IP="" \
+    SSH_PORT="22" \
+    PROXY_SERVER_IP="" \
+    SLEEP_DURATION="5s" \
+    ACTIVITY_SUB_TASK_CODE="MANAGE_REMOTE_PROCESS" \
+    VALIDATION_FAILURE_ACTION="WARNING" \
+    ACTION="status"
 
-ENV SSH_CREDENTIAL_NAME="SSH_KEY"
-ENV PROXY_OPTION=""
-ENV SSH_USERNAME=""
-ENV SSH_IP=""
-ENV SSH_PORT="22"
-ENV PROXY_SERVER_IP=""
-ENV SLEEP_DURATION 5s
-ENV ACTIVITY_SUB_TASK_CODE MANAGE_REMOTE_PROCESS
-ENV VALIDATION_FAILURE_ACTION WARNING
-ENV ACTION status
+RUN addgroup -g 65522 buildpiper && \
+    adduser -D -u 65522 -G buildpiper -h /home/buildpiper buildpiper && \
+    mkdir -p /home/buildpiper && \
+    chown -R buildpiper:buildpiper /home/buildpiper
 
-ENTRYPOINT [ "./build.sh" ]
+
+RUN mkdir -p \
+        /src/reports \
+        /bp/data \
+        /bp/execution_dir \
+        /opt/buildpiper/shell-functions \
+        /opt/buildpiper/data \
+        /bp/workspace && \
+    chown -R buildpiper:buildpiper /src /bp /opt
+
+
+COPY --chown=buildpiper:buildpiper build.sh /home/buildpiper/build.sh
+COPY --chown=buildpiper:buildpiper BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
+
+RUN chmod +x /home/buildpiper/build.sh && \
+    mkdir -p /home/buildpiper/reports && \
+    chown -R buildpiper:buildpiper /home/buildpiper
+
+USER buildpiper
+
+WORKDIR /home/buildpiper
+
+ENTRYPOINT ["./build.sh"]
