@@ -21,6 +21,9 @@ source "$SHELL_FUNCTIONS_PATH/aws-functions.sh"
 # Initial sleep
 # --------------------------------------------------
 sleep "${SLEEP_DURATION:-5s}"
+add_event "INITIAL SLEEP" "In Progress" \
+      "Sleeping before start" \
+      "Duration: ${SLEEP_DURATION:-5s}"
 
 # --------------------------------------------------
 # Credential helpers
@@ -80,6 +83,9 @@ if [ "$AUTH_MODE" = "key" ]; then
     chmod 400 "$KEY_FILE"
   fi
 fi
+add_event "SSH KEY FETCH" "In Progress" \
+      "Fetching and decrypting SSH key" \
+      "Key file: ${KEY_FILE}"
 
 # --------------------------------------------------
 # Validate required inputs
@@ -93,6 +99,9 @@ if [ -z "$ACTION" ] || [ -z "$SSH_USERNAME" ] || [ -z "$SSH_IP" ] || [ -z "$SSH_
   [ -z "$SSH_PORT" ] && logErrorMessage "SSH_PORT is not set"
   exit 1
 fi
+add_event "INPUT VALIDATION" "Completed" \
+      "Validated required inputs" \
+      "All required variables are set"
 
 if [ "$AUTH_MODE" = "password" ] && [ -z "$SSH_PASSWORD" ]; then
   logErrorMessage "SSH_PASSWORD is required for password authentication"
@@ -124,6 +133,9 @@ if [ "$USE_PROXY_SERVER" = "true" ]; then
     -o UserKnownHostsFile=/dev/null \
     -o StrictHostKeyChecking=no"
   logInfoMessage "Proxy server enabled: ${PROXY_SERVER_IP}"
+add_event "PROXY CONFIGURED" "Completed" \
+      "Proxy server setup" \
+      "Proxy IP: ${PROXY_SERVER_IP}"
 fi
 
 SSH_CMD_BASE="ssh \
@@ -136,8 +148,14 @@ SSH_CMD_BASE="ssh \
   -o StrictHostKeyChecking=no"
 
 SSH_TARGET="${SSH_USERNAME}@${SSH_IP}"
+add_event "SSH COMMAND BUILT" "In Progress" \
+      "Constructed SSH command" \
+      "Target: ${SSH_TARGET}"
 
 # --------------------------------------------------
+add_event "EXECUTE ACTION" "In Progress" \
+      "Executing remote action" \
+      "Action: ${ACTION}"
 # Execute action
 # --------------------------------------------------
 logInfoMessage "Executing action on remote host"
@@ -167,3 +185,6 @@ fi
 # Save task status
 # --------------------------------------------------
 saveTaskStatus "${TASK_STATUS}" "${ACTIVITY_SUB_TASK_CODE}"
+add_event "TASK STATUS SAVED" "Completed" \
+      "Task status saved" \
+      "Status: ${TASK_STATUS}"
