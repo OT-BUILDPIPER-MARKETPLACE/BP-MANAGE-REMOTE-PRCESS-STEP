@@ -1,0 +1,3 @@
+image: registry.buildpiper.in/bp-impl/manage-remote-process
+old_tag: nr_v0.3
+new_tag: nr_v0.4
