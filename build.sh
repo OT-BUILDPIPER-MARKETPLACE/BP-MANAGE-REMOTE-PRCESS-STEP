@@ -171,36 +171,27 @@ fi
 # ---------------------------------------------------------------
 # 5. SSH Command Construction
 # ---------------------------------------------------------------
-SSH_AUTH_OPTION=""
+SSH_BASE_OPTS="-p ${SSH_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
 PROXY_OPTION=""
-
-case "$AUTH_MODE" in
-    key)        SSH_AUTH_OPTION="-i ${KEY_FILE}" ;;
-    password)   SSH_AUTH_OPTION="" ;;
-    public_key) SSH_AUTH_OPTION="" ;;
-esac
-
 if [ "$USE_PROXY_SERVER" = "true" ]; then
     logInfoMessage "> Proxy server enabled: ${PROXY_SERVER_IP}"
-    PROXY_OPTION="-o ProxyCommand=ssh -W %h:%p ${SSH_USERNAME}@${PROXY_SERVER_IP} \
-        ${SSH_AUTH_OPTION} \
-        -o UserKnownHostsFile=/dev/null \
-        -o StrictHostKeyChecking=no"
+    PROXY_OPTION="-o ProxyCommand=\"ssh -W %h:%p ${SSH_USERNAME}@${PROXY_SERVER_IP} ${SSH_BASE_OPTS}\""
     add_event "PROXY_CONFIGURATION" "Successful" \
         "SSH proxy server configured" \
         "Proxy: ${PROXY_SERVER_IP}"
 fi
 
-SSH_CMD_BASE="ssh \
-    -p ${SSH_PORT} \
-    ${SSH_AUTH_OPTION} \
-    ${PROXY_OPTION} \
-    -o PreferredAuthentications=publickey,password \
-    -o PubkeyAuthentication=yes \
-    -o UserKnownHostsFile=/dev/null \
-    -o StrictHostKeyChecking=no"
-
 SSH_TARGET="${SSH_USERNAME}@${SSH_IP}"
+
+run_ssh_cmd() {
+    local action="$1"
+    case "$AUTH_MODE" in
+        key)        ssh -i "$KEY_FILE" $SSH_BASE_OPTS $PROXY_OPTION "$SSH_TARGET" "$action" ;;
+        password)   sshpass -p "$SSH_PASSWORD" ssh $SSH_BASE_OPTS $PROXY_OPTION "$SSH_TARGET" "$action" ;;
+        public_key) ssh $SSH_BASE_OPTS $PROXY_OPTION "$SSH_TARGET" "$action" ;;
+    esac
+}
 
 # ---------------------------------------------------------------
 # 6. Remote Action Execution
@@ -212,11 +203,8 @@ add_event "ACTION_EXECUTION_START" "Successful" \
     "Starting remote action execution" \
     "Action: ${ACTION} | Target: ${SSH_TARGET}"
 
-if [ "$AUTH_MODE" = "password" ]; then
-    sshpass -p "$SSH_PASSWORD" ${SSH_CMD_BASE} "${SSH_TARGET}" "${ACTION}"
-else
-    ${SSH_CMD_BASE} "${SSH_TARGET}" "${ACTION}"
-fi
+run_ssh_cmd "${ACTION}"
+
 RC=$?
 
 if [ $RC -ne 0 ]; then
